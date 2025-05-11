@@ -1,10 +1,10 @@
 [package]
 name = "engine"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Ludovic Debever ludovicdebever0@gmail.com", 'Eliott Reigner', 'Mahdi Aribi']
-description = "The Castled org chess engine"
-repository = "https://github.com/CastledChess/pluto"
+description = "Pluto Chess Engine"
+repository = "https://github.com/Lxdovic/pluto"
 
 [lib]
 crate-type = ["cdylib"]

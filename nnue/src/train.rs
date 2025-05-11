@@ -67,7 +67,7 @@ pub fn train() {
     };
 
     let data_loader = {
-        let file_path = "C:/Users/ludov/Documents/binpack/jan-feb-mar-apr.binpack";
+        let file_path = "";
         let buffer_size_mb = 1024;
         let threads = 4;
         fn filter(entry: &TrainingDataEntry) -> bool {
