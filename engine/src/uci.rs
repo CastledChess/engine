@@ -1,3 +1,9 @@
+use std::process::exit;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, Sender};
+use std::sync::Arc;
+use std::{io, thread};
+
 use crate::logger::Logger;
 use crate::nnue::NNUEState;
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
@@ -16,6 +22,56 @@ pub struct UciController {
     search: Search,
 }
 
+pub struct UciReader {
+    stop: Arc<AtomicBool>,
+    sender: Sender<String>,
+}
+
+impl Default for UciReader {
+    fn default() -> Self {
+        let (tx, rx) = mpsc::channel::<String>();
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_stop = stop.clone();
+
+        thread::Builder::new()
+            .stack_size(8 * 1024 * 1024) // 8MB stack size
+            .spawn(move || {
+                let mut uci_controller = UciController::default();
+
+                while let Ok(command) = rx.recv() {
+                    uci_controller.parse_command(&command, thread_stop.clone());
+                }
+            })
+            .expect("Thread creation failed");
+
+        Self { stop, sender: tx }
+    }
+}
+
+impl UciReader {
+    pub fn run(&mut self, args: Vec<String>) {
+        let mut input = args[1..].join(" ");
+
+        loop {
+            let command = input.trim();
+
+            match command {
+                "quit" => break,
+                "stop" => self.stop.store(true, Ordering::SeqCst),
+                "" => (),
+                _ => {
+                    self.stop.store(false, Ordering::SeqCst);
+                    self.sender.send(command.to_string()).unwrap();
+                }
+            }
+
+            input.clear();
+
+            io::stdin().read_line(&mut input).ok().unwrap();
+        }
+    }
+}
+
 impl Default for UciController {
     fn default() -> UciController {
         UciController {
@@ -25,7 +81,7 @@ impl Default for UciController {
 }
 
 impl UciController {
-    pub fn parse_command(&mut self, command: &str) {
+    pub fn parse_command(&mut self, command: &str, stop: Arc<AtomicBool>) {
         let tokens_vec: Vec<&str> = command.split_whitespace().collect();
         let mut tokens: Queue<&str> = queue![];
 
@@ -33,10 +89,10 @@ impl UciController {
             tokens.add(token).unwrap();
         }
 
-        self.parse_tokens(&mut tokens);
+        self.parse_tokens(&mut tokens, stop);
     }
 
-    fn parse_tokens(&mut self, tokens: &mut Queue<&str>) {
+    fn parse_tokens(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let first_token = tokens.remove().unwrap();
 
         self.search.state.tc.time_mode = TimeMode::Infinite;
@@ -44,14 +100,14 @@ impl UciController {
 
         match first_token {
             "print" => self.handle_print(tokens),
-            "bench" => self.handle_bench(),
+            "bench" => self.handle_bench(stop),
             "uci" => self.handle_uci(),
             "isready" => self.handle_isready(),
             "quit" => self.handle_quit(),
             "setoption" => self.handle_setoption(tokens),
             "ucinewgame" => self.handle_ucinewgame(),
             "position" => self.handle_position(tokens),
-            "go" => self.handle_go(tokens),
+            "go" => self.handle_go(tokens, stop),
             _ => Logger::log(&format!("Unknown command: {}", first_token)),
         }
     }
@@ -101,7 +157,7 @@ impl UciController {
         Logger::log(&self.search.state.cfg.tc_elapsed_factor.fmt_spsa());
     }
 
-    fn handle_bench(&mut self) {
+    fn handle_bench(&mut self, stop: Arc<AtomicBool>) {
         self.search.state.tt.clear();
 
         let positions = vec![
@@ -119,62 +175,69 @@ impl UciController {
             let fen: Fen = position.parse().ok().unwrap();
             let game = fen.into_position(CastlingMode::Standard).ok().unwrap();
 
+            self.search.state.nnue = NNUEState::from_board(self.search.state.game.board());
             self.search.state.game = game;
-            self.search.state.params.depth = 14;
+            self.search.state.params.depth = 12;
             self.search.state.tc.time_mode = TimeMode::Infinite;
 
-            self.search.go(false);
+            self.search.go(false, &stop);
 
             total += self.search.state.info.nodes;
         }
+
         let elapsed = Local::now().timestamp_millis() - start_time;
+
+        self.search.state.game = Chess::default();
+        self.search.state.nnue = NNUEState::from_board(self.search.state.game.board());
 
         println!(
             "{} nodes {} nps",
             total,
             total as u128 * 1000 / (elapsed + 1) as u128
         );
+
+        exit(0);
     }
 
-    fn handle_go(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_go(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let token = tokens.remove();
 
         match token.is_ok() {
             true => match token.unwrap() {
-                "btime" => self.handle_btime(tokens),
-                "wtime" => self.handle_wtime(tokens),
-                "binc" => self.handle_binc(tokens),
-                "winc" => self.handle_winc(tokens),
-                "depth" => self.handle_go_depth(tokens),
-                "movetime" => self.handle_go_movetime(tokens),
-                "infinite" => self.handle_go_infinite(tokens),
+                "btime" => self.handle_btime(tokens, stop),
+                "wtime" => self.handle_wtime(tokens, stop),
+                "binc" => self.handle_binc(tokens, stop),
+                "winc" => self.handle_winc(tokens, stop),
+                "depth" => self.handle_go_depth(tokens, stop),
+                "movetime" => self.handle_go_movetime(tokens, stop),
+                "infinite" => self.handle_go_infinite(tokens, stop),
                 _ => Logger::log(&format!("Unknown go command: {}", token.unwrap())),
             },
             false => {
-                self.search.go(true);
+                self.search.go(true, &stop);
             }
         }
     }
 
-    fn handle_winc(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_winc(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let token = tokens.remove().unwrap();
         let _inc = token.parse::<u32>().unwrap();
 
         // TODO: save winc
 
-        self.handle_go(tokens);
+        self.handle_go(tokens, stop);
     }
 
-    fn handle_binc(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_binc(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let token = tokens.remove().unwrap();
         let _inc = token.parse::<u32>().unwrap();
 
         // TODO: save binc
 
-        self.handle_go(tokens);
+        self.handle_go(tokens, stop);
     }
 
-    fn handle_btime(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_btime(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let token = tokens.remove().unwrap();
         let time = token.parse::<u128>().unwrap();
 
@@ -182,10 +245,10 @@ impl UciController {
         self.search.state.tc.time_mode = TimeMode::WOrBTime;
         self.search.state.params.b_time = time;
 
-        self.handle_go(tokens);
+        self.handle_go(tokens, stop);
     }
 
-    fn handle_wtime(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_wtime(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let token = tokens.remove().unwrap();
         let time = token.parse::<u128>().unwrap();
 
@@ -193,20 +256,20 @@ impl UciController {
         self.search.state.tc.time_mode = TimeMode::WOrBTime;
         self.search.state.params.w_time = time;
 
-        self.handle_go(tokens);
+        self.handle_go(tokens, stop);
     }
 
-    fn handle_go_depth(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_go_depth(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let token = tokens.remove().unwrap();
         let depth = token.parse::<u8>().unwrap();
 
         self.search.state.params.depth = depth;
         self.search.state.tc.time_mode = TimeMode::Infinite;
 
-        self.handle_go(tokens);
+        self.handle_go(tokens, stop);
     }
 
-    fn handle_go_movetime(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_go_movetime(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         let token = tokens.remove().unwrap();
         let time = token.parse::<u128>().unwrap();
 
@@ -214,7 +277,7 @@ impl UciController {
         self.search.state.tc.time_mode = TimeMode::MoveTime;
         self.search.state.params.depth = u8::MAX;
 
-        self.handle_go(tokens);
+        self.handle_go(tokens, stop);
     }
 
     fn handle_position(&mut self, tokens: &mut Queue<&str>) {
@@ -392,11 +455,11 @@ impl UciController {
         }
     }
 
-    fn handle_go_infinite(&mut self, tokens: &mut Queue<&str>) {
+    fn handle_go_infinite(&mut self, tokens: &mut Queue<&str>, stop: Arc<AtomicBool>) {
         self.search.state.params.depth = u8::MAX;
         self.search.state.tc.time_mode = TimeMode::Infinite;
 
-        self.handle_go(tokens);
+        self.handle_go(tokens, stop);
     }
 
     fn handle_ucinewgame(&mut self) {

@@ -1,3 +1,6 @@
+use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
+
 use crate::bound::Bound;
 use crate::eval::Eval;
 use crate::logger::Logger;
@@ -98,13 +101,14 @@ impl Search {
         self.state.hstack.pop();
     }
 
-    pub fn go(&mut self, print: bool) {
+    pub fn go(&mut self, print: bool, stop: &Arc<AtomicBool>) {
         self.state
             .tc
             .setup(&self.state.params, &self.state.game, &self.state.cfg);
         self.state.hist.new_search();
         self.state.info.nodes = 0;
         self.state.tt.new_search();
+        self.state.tc.stop = stop.clone();
 
         let mut best_move = None;
 
