@@ -19,9 +19,9 @@ by [Lxdovic](https://github.com/Lxdovic)
 
 ## Strength
 
-| Version        | Date       | Estimated ELO |
-| ----------     | ---------- | ------------- |
-| Before Release | 8 May 2025 | 2870          |
+| Version        | Date        | Estimated ELO | CCRL |
+| -------------- | ----------- | ------------- | ---- |
+| 1.0.0          | 11 May 2025 | 2870          | 2859 |
 
 ## Testing
 
