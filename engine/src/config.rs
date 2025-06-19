@@ -29,6 +29,7 @@ pub struct OptionDescriptor<T> {
     pub max: T,
 }
 
+#[cfg(feature = "tuning")]
 impl OptionDescriptor<i32> {
     pub fn fmt_spsa(&self) -> String {
         format!(
@@ -37,6 +38,7 @@ impl OptionDescriptor<i32> {
         )
     }
 }
+#[cfg(feature = "tuning")]
 impl OptionDescriptor<u8> {
     pub fn fmt_spsa(&self) -> String {
         format!(
@@ -45,6 +47,7 @@ impl OptionDescriptor<u8> {
         )
     }
 }
+#[cfg(feature = "tuning")]
 impl OptionDescriptor<usize> {
     pub fn fmt_spsa(&self) -> String {
         format!(
@@ -53,6 +56,7 @@ impl OptionDescriptor<usize> {
         )
     }
 }
+#[cfg(feature = "tuning")]
 impl OptionDescriptor<i64> {
     pub fn fmt_spsa(&self) -> String {
         format!(
@@ -61,6 +65,7 @@ impl OptionDescriptor<i64> {
         )
     }
 }
+#[cfg(feature = "tuning")]
 impl OptionDescriptor<u64> {
     pub fn fmt_spsa(&self) -> String {
         format!(
@@ -69,6 +74,7 @@ impl OptionDescriptor<u64> {
         )
     }
 }
+#[cfg(feature = "tuning")]
 impl OptionDescriptor<f64> {
     pub fn fmt_spsa(&self) -> String {
         format!(

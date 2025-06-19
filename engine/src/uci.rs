@@ -116,11 +116,13 @@ impl UciController {
         let scope = tokens.remove().unwrap();
 
         match scope {
+            #[cfg(feature = "tuning")]
             "spsa" => self.handle_print_spsa(tokens),
             _ => Logger::log(&format!("unknown scope: {}", scope)),
         }
     }
 
+    #[cfg(feature = "tuning")]
     fn handle_print_spsa(&self, tokens: &mut Queue<&str>) {
         let target = tokens.remove().unwrap();
 
@@ -130,6 +132,7 @@ impl UciController {
         }
     }
 
+    #[cfg(feature = "tuning")]
     fn handle_print_spsa_workload(&self) {
         Logger::log(&self.search.state.cfg.qsearch_depth.fmt_spsa());
         Logger::log(&self.search.state.cfg.rfp_depth.fmt_spsa());
@@ -388,65 +391,94 @@ impl UciController {
 
                 self.search.state.tt = TranspositionTable::new(entries as usize);
             }
+            #[cfg(feature = "tuning")]
             "QSearchDepth" => {
                 self.search.state.cfg.qsearch_depth.value = value.parse::<u8>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "RFPDepth" => self.search.state.cfg.rfp_depth.value = value.parse::<u8>().unwrap(),
+
+            #[cfg(feature = "tuning")]
             "RFPBaseMargin" => {
                 self.search.state.cfg.rfp_base_margin.value = value.parse::<i32>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "RFPReductionImproving" => {
                 self.search.state.cfg.rfp_reduction_improving.value = value.parse::<i32>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "FPDepthMargin" => {
                 self.search.state.cfg.fp_depth_margin.value = value.parse::<u8>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "FPBaseMargin" => {
                 self.search.state.cfg.fp_base_margin.value = value.parse::<i32>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "FPMarginDepthFactor" => {
                 self.search.state.cfg.fp_margin_depth_factor.value = value.parse::<i32>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "NMPDepth" => self.search.state.cfg.nmp_depth.value = value.parse::<u8>().unwrap(),
+
+            #[cfg(feature = "tuning")]
             "NMPMargin" => self.search.state.cfg.nmp_margin.value = value.parse::<u8>().unwrap(),
+
+            #[cfg(feature = "tuning")]
             "NMPDivisor" => self.search.state.cfg.nmp_divisor.value = value.parse::<u8>().unwrap(),
+
+            #[cfg(feature = "tuning")]
             "NMPDivisorImproving" => {
                 self.search.state.cfg.nmp_divisor_improving.value = value.parse::<u8>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "LMPMoveMargin" => {
                 self.search.state.cfg.lmp_move_margin.value = value.parse::<usize>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "LMPDepthFactor" => {
                 self.search.state.cfg.lmp_depth_factor.value = value.parse::<u8>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "LMRDepth" => self.search.state.cfg.lmr_depth.value = value.parse::<u8>().unwrap(),
+
+            #[cfg(feature = "tuning")]
             "LMRMoveMargin" => {
                 self.search.state.cfg.lmr_move_margin.value = value.parse::<usize>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "LMRQuietMargin" => {
                 self.search.state.cfg.lmr_quiet_margin.value = value.parse::<f64>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "LMRQuietDivisor" => {
                 self.search.state.cfg.lmr_quiet_divisor.value = value.parse::<f64>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "LMRBaseMargin" => {
                 self.search.state.cfg.lmr_base_margin.value = value.parse::<f64>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "LMRBaseDivisor" => {
                 self.search.state.cfg.lmr_base_divisor.value = value.parse::<f64>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "MOTTEntryValue" => {
                 self.search.state.cfg.mo_tt_entry_value.value = value.parse::<i32>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "MOCaptureValue" => {
                 self.search.state.cfg.mo_capture_value.value = value.parse::<i32>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "MOKillerValue" => {
                 self.search.state.cfg.mo_killer_value.value = value.parse::<i32>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "TCTimeDivisor" => {
                 self.search.state.cfg.tc_time_divisor.value = value.parse::<u64>().unwrap()
             }
+            #[cfg(feature = "tuning")]
             "TCElapsedFactor" => {
                 self.search.state.cfg.tc_elapsed_factor.value = value.parse::<i64>().unwrap()
             }
@@ -483,29 +515,76 @@ impl UciController {
         Logger::log(format!("{}", self.search.state.cfg.hash).as_str());
 
         // Values to tune
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.qsearch_depth).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.rfp_depth).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.rfp_base_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.rfp_reduction_improving).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.fp_base_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.fp_depth_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.fp_margin_depth_factor).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.nmp_depth).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.nmp_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.nmp_divisor).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.nmp_divisor_improving).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmp_move_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmp_depth_factor).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmr_depth).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmr_move_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmr_quiet_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmr_quiet_divisor).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmr_base_margin).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.lmr_base_divisor).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.mo_tt_entry_value).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.mo_capture_value).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.mo_killer_value).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.tc_time_divisor).as_str());
+
+        #[cfg(feature = "tuning")]
         Logger::log(format!("{}", self.search.state.cfg.tc_elapsed_factor).as_str());
 
         Logger::log(r#"uciok"#);
